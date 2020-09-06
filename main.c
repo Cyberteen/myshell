@@ -10,6 +10,10 @@
 //#include <readline/readline.h>
 //#include <readline/history.h>
 
+#define MAXIMUM_COMMAND_LENGTH 16 	//in words
+#define DEFAULT_PATH_LEN 32 		//in bytes
+#define PATH_LENGTH_INCREMENT 8 	//in bytes
+
 int main(int argc, char *argv[], char *envp[])
 {
 	
@@ -17,13 +21,37 @@ int main(int argc, char *argv[], char *envp[])
 	
 	pid_t child;	    
 	char *command[16], *tok, *lineptr = NULL; // Not going to use commands with more than 15 words; extra room for NULL term
-	size_t i, n; // Number of bytes read into lineptr (mallocated internally by getline)
+	size_t i, n; 	// Number of bytes read into lineptr (mallocated internally by getline)
+	size_t pathLen = DEFAULT_PATH_LEN ; //setting initial path length to 32 characters
 	int status;
+	char *buf = (char*)malloc(sizeof(char)*pathLen);
 
 	while(1)
-	{
+	{	
+		while(1)
+		{
+			if( NULL == getcwd(buf,pathLen)) //getcwd returned NULL, so check for error
+			{
+				if(ERANGE == errno) //initial path length not sufficient, we increase pathLen and reallocate buf
+				{
+					free(buf);
+					pathLen += PATH_LENGTH_INCREMENT;
+					buf = (char*) malloc(sizeof(char)*pathLen);
+					printf("getcwd returned insufficient path\n");
+				}
+				else
+				{
+					printf("getcwd returned error: %s",strerror(errno));
+					free(buf);
+					break;
+				}
+			}
+			else
+				break; //getcwd is success, so break
+			
+		} 
 
-		printf("myshell$");
+		printf("myshell:%s$ ",buf);
 		
 	       	if (getline(&lineptr, &n, stdin) == -1)
 			break;
@@ -39,26 +67,30 @@ int main(int argc, char *argv[], char *envp[])
 
 		command[i] = NULL;
 
-		child = fork(); //fork creates a child process. returns 0 on success else a error num
+		child = fork(); //fork creates a child process. returns 0 to parent process and child id to child process  on success else a error num
 
-		if(0 == child)
+		if(child == 0)
 		{
+			
 			if(execve(command[0],command,envp))
 			{
 				perror("execve");
 				exit(EXIT_FAILURE);
 			}
+			
 		}
-		if(0 > child) 
+		//else
+		//{
+		//	printf("fork failed! errno.(%s) \n", strerror(errno));				
+		//}
+
+		if(child > 0) 
 		{
-			printf("Child process created with PID (%d)", child);
+			//printf("Child process created with PID (%d)\n", child);
 			wait(&status);
 		}
-		else
-		{
-			printf("fork failed! errno.(%s) \n", strerror(errno));				
-		}
-	
+		
+		
 
 		//printf("no.of tokens: %lu \n", i);
 		//printf("command[0]: %s \n",command[0]);
@@ -67,9 +99,10 @@ int main(int argc, char *argv[], char *envp[])
 
 	putchar('\n');
 	free(lineptr);
+	if(buf!=NULL)
+		free(buf);
 	exit(status);
 
-//	return(0);
 }
 
 
