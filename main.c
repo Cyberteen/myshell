@@ -10,7 +10,7 @@
 //#include <readline/readline.h>
 //#include <readline/history.h>
 
-#define MAXIMUM_COMMAND_LENGTH 16 	//in words
+#define MAXIMUM_COMMAND_LENGTH 16 	//in english words
 #define DEFAULT_PATH_LEN 32 		//in bytes
 #define PATH_LENGTH_INCREMENT 8 	//in bytes
 
@@ -18,6 +18,7 @@ int main(int argc, char *argv[], char *envp[])
 {
 	
 	printf("Welcome to my shell! \n");
+	printf("******************** \n");
 	
 	pid_t child;	    
 	char *command[16], *tok, *lineptr = NULL; // Not going to use commands with more than 15 words; extra room for NULL term
@@ -67,14 +68,18 @@ int main(int argc, char *argv[], char *envp[])
 
 		command[i] = NULL;
 
+		//checks for built-in commands which run without creating a process
+		if(0 == strcmp(command[0],"exit"))
+			break;
+
 		child = fork(); //fork creates a child process. returns 0 to parent process and child id to child process  on success else a error num
 
 		if(child == 0)
 		{
 			
-			if(execve(command[0],command,envp))
+			if(execvp(command[0],command))
 			{
-				perror("execve");
+				perror("execvp");
 				exit(EXIT_FAILURE);
 			}
 			
@@ -89,11 +94,6 @@ int main(int argc, char *argv[], char *envp[])
 			//printf("Child process created with PID (%d)\n", child);
 			wait(&status);
 		}
-		
-		
-
-		//printf("no.of tokens: %lu \n", i);
-		//printf("command[0]: %s \n",command[0]);
 
 	}
 
@@ -101,6 +101,10 @@ int main(int argc, char *argv[], char *envp[])
 	free(lineptr);
 	if(buf!=NULL)
 		free(buf);
+
+	printf("*****************************\n");
+	printf("Thank you for using my shell!\n");
+	
 	exit(status);
 
 }
